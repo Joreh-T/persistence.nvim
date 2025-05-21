@@ -129,7 +129,7 @@ function M.load(opts)
 
       -- Check and close the directory buffer (possibly netrw but filetype is not set to netrw)
       local bufname = vim.api.nvim_buf_get_name(bufnr)
-      if bufname ~= "" and vim.fn.isdirectory(bufname) == 1 then
+      if bufname ~= "" and vim.fn.isdirectory(bufname) == 1 and bufname ~= "neo-tree" and bufname ~= "NvimTree" then
         vim.api.nvim_buf_delete(bufnr, { force = true })
       end
     end
