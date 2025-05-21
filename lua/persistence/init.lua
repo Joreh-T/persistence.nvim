@@ -38,6 +38,10 @@ end
 
 function M.start()
   M._active = true
+
+  -- Preserve the original session options
+  local orig_ssop = vim.o.sessionoptions
+
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = vim.api.nvim_create_augroup("persistence", { clear = true }),
     callback = function()
@@ -55,7 +59,21 @@ function M.start()
         end
       end
 
+      -- Close all netrw buffers to prevent saving them in the session.
+      for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.bo[bufnr].filetype == "netrw" then
+          vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
+      end
+
+      -- Modify sessionoptions to exclude netrw
+      vim.o.sessionoptions = "blank,buffers,curdir,folds,help,tabpages,winsize,terminal"
+
       M.save()
+
+      -- Restore default settings
+      vim.o.sessionoptions = orig_ssop
+
       M.fire("SavePost")
     end,
   })
@@ -84,9 +102,37 @@ function M.load(opts)
     end
   end
   if file and vim.fn.filereadable(file) ~= 0 then
+    -- Close all netrw buffers before loading the session.
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.bo[bufnr].filetype == "netrw" then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+      end
+    end
+
+    -- Preserve the original session options
+    local orig_ssop = vim.o.sessionoptions
+    -- Modify sessionoptions to exclude netrw
+    vim.o.sessionoptions = "blank,buffers,curdir,folds,help,tabpages,winsize,terminal"
+
     M.fire("LoadPre")
     vim.cmd("silent! source " .. e(file))
+
+    vim.o.sessionoptions = orig_ssop
+
     M.fire("LoadPost")
+
+    -- After loading the session, close all netrw buffers again.
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.bo[bufnr].filetype == "netrw" then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+      end
+
+      -- Check and close the directory buffer (possibly netrw but filetype is not set to netrw)
+      local bufname = vim.api.nvim_buf_get_name(bufnr)
+      if bufname ~= "" and vim.fn.isdirectory(bufname) == 1 then
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+      end
+    end
   end
 end
 
